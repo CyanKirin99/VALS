@@ -4,17 +4,17 @@ from upstream.src.utils.tensors import trunc_normal_
 
 
 class PE(nn.Module):
-    def __init__(self, dim, max_len=1000, learnable=True, init_std=0.02):
+    def __init__(self, dim, max_len=1000, pe_type='learnable', init_std=0.02):
         super(PE, self).__init__()
         self.max_len = max_len
         self.dim = dim
         self.init_std = init_std
 
         pe = torch.zeros(max_len, dim)
-        if learnable:
+        if pe_type == 'learnable':
             self.pe = nn.Parameter(pe.unsqueeze(0))  # (1, max_len, dim)
             trunc_normal_(self.pe, std=self.init_std)
-        else:
+        elif pe_type == 'fixed':
             position = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)
             div_term = torch.exp(torch.arange(0, dim, 2).float() * (-torch.log(torch.tensor(10000.0)) / dim))
             pe[:, 0::2] = torch.sin(position * div_term)

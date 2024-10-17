@@ -20,27 +20,27 @@ data:
 #  trait_path: ../data/demo/lopex_trait.csv
 #  trait_path: ../data/with_label/AllTraitsFilted.csv
 logging:
-  folder: log/m_c_a_st_f/165_type_complete
-  write_tag: m_c_a_st_f_165_type_complete
   log_timings: true
   log_freq: 2
   checkpoint_freq: 100
 meta:
-  complete: true
-  freeze_encoder: true
-  learnable_pe: true
-  load_regressor: false
-  model_name: encoder_small
+  preprocess: manual
+  proj_type: conv
+  pe_type: learnable
+  model_size: base
+  dataset_name: fresh
+  pred_type: complete
   output_dims:
     LMA: 1
     CHL: 1
     Type: 4
+  notes: cabo_lma
+  freeze_encoder: true
+  load_regressor: false
+  read_checkpoint: manual_conv_learnable_base_fresh-latest.pth.tar
   patch_size: 30
   pred_emb_dim: 96
   pred_depth: 2
-  preprocess: manual
-  proj_type: conv
-  read_checkpoint: m_c_a_st_f-ep1000.pth.tar
   seed: 42
   use_bfloat16: false
 optimization:

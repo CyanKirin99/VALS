@@ -1,5 +1,4 @@
-/data/
-**/log/
+*.csv
+*.pth.tar
 **/mirror_log/
-**/checkpoints/
-**/mirror_checkpoints/
+**/mirror_chechpoints/

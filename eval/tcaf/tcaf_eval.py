@@ -8,7 +8,7 @@ from downstream.src.helper_downstream import init_model, load_checkpoint
 from downstream.src.datasets.dataset_refl_trait import make_dataset
 from eval.utils.denormalization import Denormalize
 from eval.utils.visualize import plot_scatters, plot_complex_scatters
-from downstream.src.models.upstream_model import SimpleUpstreamModel, CompleteUpstreamModel
+from downstream.src.models.upstream_model import IgnoreUpstreamModel, CompleteUpstreamModel
 
 from sklearn.metrics import (accuracy_score, precision_score, recall_score, f1_score,
                              confusion_matrix, ConfusionMatrixDisplay)
@@ -17,17 +17,20 @@ from sklearn.metrics import (accuracy_score, precision_score, recall_score, f1_s
 def main(args):
     # -- META
     _GLOBAL_SEED = args['meta']['seed']
-    model_name = args['meta']['model_name']
-    load_regressor = args['meta']['load_regressor']
-    r_file = args['meta']['read_checkpoint']
+
+    preprocess = args['meta']['preprocess']
+    proj_type = args['meta']['proj_type']
+    model_size = args['meta']['model_size']
+    pe_type = args['meta']['pe_type']
+    pred_type = args['meta']['pred_type']  # downstream special
+
     patch_size = args['meta']['patch_size']
     pred_depth = args['meta']['pred_depth']
     pred_emb_dim = args['meta']['pred_emb_dim']
-    proj_type = args['meta']['proj_type']
     output_dims = args['meta']['output_dims']
-    complete = args['meta']['complete']
-    preprocess = args['meta']['preprocess']
-    learnable_pe = args['meta']['learnable_pe']
+
+    load_regressor = args['meta']['load_regressor']
+    r_file = args['meta']['read_checkpoint']
 
     if not torch.cuda.is_available():
         device = torch.device('cpu')
@@ -53,6 +56,7 @@ def main(args):
     folder = args['logging']['folder']
     load_path = os.path.join(folder, r_file)
 
+    model_name = f'encoder_{model_size}'
     embedding, encoder, predictor, regressor = init_model(
         device=device,
         tasks=tasks,
@@ -63,7 +67,7 @@ def main(args):
         proj_type=proj_type,
         output_dims=output_dims,
         preprocess=preprocess,
-        learnable_pe=learnable_pe)
+        pe_type=pe_type)
 
     embedding, encoder, predictor, regressor, _, _, _ = load_checkpoint(
         device=device,
@@ -74,11 +78,11 @@ def main(args):
         regressor=regressor,
         load_regressor=load_regressor)
 
-    # define upstream model
-    if complete:
+    # -- define upstream model
+    if pred_type == 'complete':
         up_model = CompleteUpstreamModel(embedding, encoder, predictor).to(device)
-    else:
-        up_model = SimpleUpstreamModel(embedding, encoder).to(device)
+    elif pred_type == 'ignore':
+        up_model = IgnoreUpstreamModel(embedding, encoder).to(device)
     up_model.eval()
 
     # -- init data-loaders/samplers
@@ -93,9 +97,9 @@ def main(args):
             x = x.to(device)
             with torch.no_grad():
                 x, mask = up_model(x)
-                if complete:
+                if pred_type == 'complete':
                     outputs = regressor(x)
-                else:
+                elif pred_type == 'ignore':
                     outputs = regressor(x, mask=mask)
 
             # -- save & transform

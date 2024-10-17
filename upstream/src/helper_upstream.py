@@ -73,15 +73,15 @@ def init_model(
         patch_size=30,
         preprocess='manual',
         proj_type='conv',
-        learnable_pe=True,
+        pe_type='learnable',
 ):
-    encoder = encoders.__dict__[model_name](learnable_pe=learnable_pe)
+    encoder = encoders.__dict__[model_name](pe_type=pe_type)
     predictor = encoders.__dict__['encoder_predictor'](
         embed_dim=encoder.embed_dim,
         predictor_embed_dim=pred_emb_dim,
         depth=pred_depth,
         num_heads=encoder.num_heads,
-        learnable_pe=learnable_pe,
+        pe_type=pe_type,
     )
     embedding = ManualEmbedding(encoder.embed_dim, patch_size, proj_type=proj_type) if preprocess == 'manual' \
         else AutomaticEmbedding(encoder.embed_dim, patch_size, proj_type=proj_type)

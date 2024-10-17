@@ -20,7 +20,7 @@ from downstream.src.helper_downstream import (
     load_checkpoint,
     init_model,
     init_opt)
-from downstream.src.models.upstream_model import CompleteUpstreamModel, SimpleUpstreamModel
+from downstream.src.models.upstream_model import CompleteUpstreamModel, IgnoreUpstreamModel
 
 
 def main(args):
@@ -31,18 +31,25 @@ def main(args):
     # -- META
     _GLOBAL_SEED = args['meta']['seed']
     use_bfloat16 = args['meta']['use_bfloat16']
-    model_name = args['meta']['model_name']
-    load_regressor = args['meta']['load_regressor']
-    r_file = args['meta']['read_checkpoint']
+
+    preprocess = args['meta']['preprocess']
     proj_type = args['meta']['proj_type']
+    model_size = args['meta']['model_size']
+    pe_type = args['meta']['pe_type']
+    dataset_name = args['meta']['dataset_name']
+    pred_type = args['meta']['pred_type']  # downstream special
+    notes = args['meta']['notes']
+
     patch_size = args['meta']['patch_size']
-    learnable_pe = args['meta']['learnable_pe']
-    output_dims = args['meta']['output_dims']
     pred_depth = args['meta']['pred_depth']
     pred_emb_dim = args['meta']['pred_emb_dim']
-    preprocess = args['meta']['preprocess']
-    complete = args['meta']['complete']
-    freeze_encoder = args['meta']['freeze_encoder']
+    output_dims = args['meta']['output_dims']  # downstream special
+
+    load_regressor = args['meta']['load_regressor']
+    r_file = args['meta']['read_checkpoint']
+    freeze_encoder = args['meta']['freeze_encoder']  # downstream special
+
+
     if not torch.cuda.is_available():
         device = torch.device('cpu')
     else:
@@ -77,8 +84,9 @@ def main(args):
     final_lr = args['optimization']['final_lr']
 
     # -- LOGGING
-    folder = args['logging']['folder']
-    tag = args['logging']['write_tag']
+    tag_ = f'{preprocess}_{proj_type}_{pe_type}_{model_size}_{dataset_name}_{pred_type}'
+    folder = f'log/{tag_}/'
+    tag = f'{tag_}_{notes}'
     log_timings = args['logging']['log_timings']
     log_freq = args['logging']['log_freq']
     checkpoint_freq = args['logging']['checkpoint_freq']
@@ -104,6 +112,7 @@ def main(args):
                [(f'%.2e', 'lr_'+tk) for tk in tasks] + [(f'%.2e', 'wd_'+tk) for tk in tasks])
     csv_logger = CSVLogger(log_file, *columns)
 
+    model_name = f'encoder_{model_size}'
     embedding, encoder, predictor, regressor = init_model(
         device=device,
         tasks=tasks,
@@ -114,7 +123,7 @@ def main(args):
         proj_type=proj_type,
         output_dims=output_dims,
         preprocess=preprocess,
-        learnable_pe=learnable_pe,)
+        pe_type=pe_type,)
 
     # -- init data-loaders/samplers
     dataset, train_loader, test_loader = make_dataset(spec_path, trait_path, tasks, output_dims, split_ratio,
@@ -160,10 +169,10 @@ def main(args):
             wd_schedulers[tk].step()
 
     # -- define upstream model
-    if complete:
+    if pred_type == 'complete':
         up_model = CompleteUpstreamModel(embedding, encoder, predictor).to(device)
-    else:
-        up_model = SimpleUpstreamModel(embedding, encoder).to(device)
+    elif pred_type == 'ignore':
+        up_model = IgnoreUpstreamModel(embedding, encoder).to(device)
     if freeze_encoder:
         up_model.eval()
 
@@ -218,9 +227,9 @@ def main(args):
                     return x, mask
 
                 def forward_downstream(x, mask=None):
-                    if complete:
+                    if pred_type == 'complete':
                         outputs = regressor(x)
-                    else:
+                    elif pred_type == 'ignore':
                         outputs = regressor(x, mask=mask)
 
                     loss_dict = {tk: torch.tensor(0.0).to(device) for tk in tasks}

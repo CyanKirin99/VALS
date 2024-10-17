@@ -34,14 +34,18 @@ def main(args, resume_preempt=False):
     # -- META
     _GLOBAL_SEED = args['meta']['seed']
     use_bfloat16 = args['meta']['use_bfloat16']
-    model_name = args['meta']['model_name']
-    learnable_pe = args['meta']['learnable_pe']
-    load_model = args['meta']['load_checkpoint'] or resume_preempt
+
+    preprocess = args['meta']['preprocess']
+    proj_type = args['meta']['proj_type']
+    model_size = args['meta']['model_size']
+    pe_type = args['meta']['pe_type']
+    dataset_name = args['meta']['dataset_name']
+
     patch_size = args['meta']['patch_size']
     pred_depth = args['meta']['pred_depth']
     pred_emb_dim = args['meta']['pred_emb_dim']
-    preprocess = args['meta']['preprocess']
-    proj_type = args['meta']['proj_type']
+
+    load_model = args['meta']['load_checkpoint'] or resume_preempt
     r_file = args['meta']['read_checkpoint']
 
     # --
@@ -81,8 +85,8 @@ def main(args, resume_preempt=False):
     final_lr = args['optimization']['final_lr']
 
     # -- LOGGING
-    folder = args['logging']['folder']
-    tag = args['logging']['write_tag']
+    tag = f'{preprocess}_{proj_type}_{pe_type}_{model_size}_{dataset_name}'
+    folder = f'log/{tag}/'
     log_timings = args['logging']['log_timings']
     log_freq = args['logging']['log_freq']
     checkpoint_freq = args['logging']['checkpoint_freq']
@@ -113,6 +117,7 @@ def main(args, resume_preempt=False):
                            ('%d', 'time (ms)'))
 
     # -- init model
+    model_name = f'encoder_{model_size}'
     embedding, encoder, predictor = init_model(
         device=device,
         pred_depth=pred_depth,
@@ -121,7 +126,7 @@ def main(args, resume_preempt=False):
         patch_size=patch_size,
         proj_type=proj_type,
         preprocess=preprocess,
-        learnable_pe=learnable_pe,
+        pe_type=pe_type,
     )
     target_encoder = copy.deepcopy(encoder)
 

@@ -35,9 +35,9 @@ class CompleteUpstreamModel(nn.Module):
         tgt_shp = [mask_indices.size(0), mask_indices.size(1)]
 
         ctx_rep = self.encoder(valid_x, indices=valid_indices)
-        ctx_rep_ = F.layer_norm(ctx_rep, (ctx_rep.size(-1),))
+        # ctx_rep = F.layer_norm(ctx_rep, (ctx_rep.size(-1),))
 
-        pred_rep = self.predictor(ctx_rep_, tgt_shp, valid_indices, mask_indices, num_tgt_blk=1)
+        pred_rep = self.predictor(ctx_rep, tgt_shp, valid_indices, mask_indices, num_tgt_blk=1)
 
         x_like_ = torch.zeros_like(x_)
         x_like_[:, valid_indices] = ctx_rep
@@ -69,9 +69,9 @@ class CompleteUpstreamModel(nn.Module):
         return grouped_indices, grouped_x, grouped_mask
 
 
-class SimpleUpstreamModel(nn.Module):
+class IgnoreUpstreamModel(nn.Module):
     def __init__(self, embedding, encoder, predictor=None):
-        super(SimpleUpstreamModel, self).__init__()
+        super(IgnoreUpstreamModel, self).__init__()
         self.embedding = embedding
         self.encoder = encoder
         self.predictor = predictor
@@ -79,5 +79,5 @@ class SimpleUpstreamModel(nn.Module):
     def forward(self, x):
         x, mask = self.embedding(x)
         x = self.encoder(x, mask=mask)
-        x = F.layer_norm(x, (x.size(-1), ))
+        # x = F.layer_norm(x, (x.size(-1), ))
         return x, mask

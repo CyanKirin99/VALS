@@ -110,7 +110,7 @@ class Block(nn.Module):
 class Encoder(nn.Module):
     def __init__(
             self,
-            learnable_pe=True,
+            pe_type='learnable',
             embed_dim=192,
             predictor_embed_dim=96,
             depth=6,
@@ -130,7 +130,7 @@ class Encoder(nn.Module):
         self.num_features = self.embed_dim = embed_dim
         self.num_heads = num_heads
 
-        self.pe = PE(embed_dim, learnable=learnable_pe)
+        self.pe = PE(embed_dim, pe_type=pe_type)
         dpr = [x.item() for x in torch.linspace(0, drop_path_rate, depth)]  # stochastic depth decay rule
         self.blocks = nn.ModuleList([
             Block(
@@ -175,7 +175,7 @@ class Encoder(nn.Module):
 class Predictor(nn.Module):
     def __init__(
             self,
-            learnable_pe=True,
+            pe_type='learnable',
             embed_dim=192,
             predictor_embed_dim=96,
             depth=4,
@@ -195,7 +195,7 @@ class Predictor(nn.Module):
         self.mask_token = nn.Parameter(torch.zeros(1, 1, predictor_embed_dim))
         dpr = [x.item() for x in torch.linspace(0, drop_path_rate, depth)]  # stochastic depth decay rule
         # --
-        self.pe = PE(predictor_embed_dim, learnable=learnable_pe)
+        self.pe = PE(predictor_embed_dim, pe_type=pe_type)
         # --
         self.predictor_blocks = nn.ModuleList([
             Block(
@@ -283,7 +283,7 @@ def encoder_base(**kwargs):
     return model
 
 
-def encoder_big(**kwargs):
+def encoder_large(**kwargs):
     model = Encoder(
         embed_dim=768, depth=8, num_heads=12, mlp_ratio=4,
         qkv_bias=True, norm_layer=partial(nn.LayerNorm, eps=1e-6), **kwargs)
@@ -294,5 +294,5 @@ ENCODER_EMBED_DIMS = {
     'encoder_tiny': 96,
     'encoder_small': 192,
     'encoder_base': 384,
-    'encoder_big': 768,
+    'encoder_large': 768,
 }
