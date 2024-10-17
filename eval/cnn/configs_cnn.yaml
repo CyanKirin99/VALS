@@ -1,0 +1,36 @@
+data:
+  batch_size: 2000
+  num_workers: 0
+  pin_mem: true
+  spec_path: C:/file/Research/projects/TCAF/data/demo/hs_refl.csv
+#  spec_path: C:/file/Research/projects/TCAF/data/with_label/AllRefl.csv
+  split_ratio:
+    - 0.7
+    - 0.3
+  tasks:
+    - CHLa
+  trait_path: C:/file/Research/projects/TCAF/data/demo/hs_trait.csv
+#  trait_path: C:/file/Research/projects/TCAF/data/with_label/AllTraitsFilted.csv
+logging:
+  checkpoint_freq: 50
+  folder: checkpoints/
+  read_checkpoint: CHLa-ep1000.pth.tar
+meta:
+  hid_channels: 4
+  in_channels: 1
+  kernel_size: 30
+  out_channels: 1
+  padding: 0
+  seed: 42
+  stride: 5
+optimization:
+  epochs: 1000
+  final_lr: 1.0e-06
+  final_weight_decay: 0.4
+  ipe_scale: 1.0
+  lr: 0.0001
+  start_lr: 0.00002
+  warmup: 10
+  weight_decay: 0.04
+  use_bfloat16: false
+

@@ -1,0 +1,35 @@
+data:
+  batch_size: 1200
+  num_workers: 0
+  pin_mem: true
+#  spec_path: ../../data/with_label/AllRefl.csv
+#  spec_path: ../../data/demo/hs_refl_demo.csv
+#  spec_path: ../../data/demo/hs_refl.csv
+  spec_path: ../../data/demo/165_refl.csv
+  split_ratio:
+    - 0.7
+    - 0.3
+  tasks:
+    - Type
+#  trait_path: ../../data/with_label/AllTraitsFilted.csv
+#  trait_path: ../../data/demo/hs_trait_demo.csv
+#  trait_path: ../../data/demo/hs_trait.csv
+  trait_path: ../../data/demo/165_trait.csv
+logging:
+  folder: checkpoints/
+meta:
+  complete: true
+  learnable_pe: true
+  load_regressor: true
+  model_name: encoder_small
+  output_dims:
+    LMA: 1
+    CHL: 1
+    Type: 4
+  patch_size: 30
+  pred_emb_dim: 96
+  pred_depth: 2
+  preprocess: manual
+  proj_type: conv
+  read_checkpoint: m_c_a_st_f_165_type_simple_lipu-ep300.pth.tar
+  seed: 42

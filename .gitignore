@@ -1,0 +1,5 @@
+/data/
+**/log/
+**/mirror_log/
+**/checkpoints/
+**/mirror_checkpoints/

@@ -1,0 +1,39 @@
+data:
+  batch_size: 1800
+  num_workers: 0
+  pin_mem: true
+  file_path: ../data/fresh.csv
+logging:
+  folder: log/m_c_a_bt_f/
+  write_tag: m_c_a_bt_f
+  log_timings: true
+  log_freq: 1
+  checkpoint_freq: 50
+mask:
+  num_tgt_blk: 4
+  tgt_p_len: 6
+  cxt_p_len: 24
+meta:
+  learnable_pe: true
+  load_checkpoint: true
+  model_name: encoder_base
+  patch_size: 30
+  pred_emb_dim: 96
+  pred_depth: 2
+  preprocess: manual
+  proj_type: conv
+  read_checkpoint: m_c_a_bt_f-latest.pth.tar
+  seed: 42
+  use_bfloat16: true
+optimization:
+  ema:
+  - 0.996
+  - 1.0
+  epochs: 1000
+  final_lr: 1.0e-06
+  final_weight_decay: 0.4
+  ipe_scale: 1.0
+  lr: 0.0001
+  start_lr: 0.00002
+  warmup: 10
+  weight_decay: 0.04

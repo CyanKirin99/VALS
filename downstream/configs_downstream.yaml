@@ -1,0 +1,54 @@
+data:
+  batch_size: 1200
+  num_workers: 0
+  pin_mem: true
+#  spec_path: ../data/demo/real_refl.csv
+#  spec_path: ../data/demo/hs_refl.csv
+#  spec_path: ../data/demo/165_refl.csv
+  spec_path: ../data/demo/cabo_refl.csv
+#  spec_path: ../data/demo/lopex_refl.csv
+#  spec_path: ../data/with_label/AllRefl.csv
+  split_ratio:
+    - 0.7
+    - 0.3
+  tasks:
+    - LMA
+#  trait_path: ../data/demo/real_trait.csv
+#  trait_path: ../data/demo/hs_trait.csv
+#  trait_path: ../data/demo/165_trait.csv
+  trait_path: ../data/demo/cabo_trait.csv
+#  trait_path: ../data/demo/lopex_trait.csv
+#  trait_path: ../data/with_label/AllTraitsFilted.csv
+logging:
+  folder: log/m_c_a_st_f/165_type_complete
+  write_tag: m_c_a_st_f_165_type_complete
+  log_timings: true
+  log_freq: 2
+  checkpoint_freq: 100
+meta:
+  complete: true
+  freeze_encoder: true
+  learnable_pe: true
+  load_regressor: false
+  model_name: encoder_small
+  output_dims:
+    LMA: 1
+    CHL: 1
+    Type: 4
+  patch_size: 30
+  pred_emb_dim: 96
+  pred_depth: 2
+  preprocess: manual
+  proj_type: conv
+  read_checkpoint: m_c_a_st_f-ep1000.pth.tar
+  seed: 42
+  use_bfloat16: false
+optimization:
+  epochs: 1000
+  final_lr: 1.0e-06
+  final_weight_decay: 0.4
+  ipe_scale: 1.0
+  lr: 0.0001
+  start_lr: 0.00002
+  warmup: 10
+  weight_decay: 0.04
