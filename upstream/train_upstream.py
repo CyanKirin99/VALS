@@ -206,7 +206,7 @@ def main(args, resume_preempt=False):
                 def forward_target(x, tgt_indices):
                     with torch.no_grad():
                         all_rep = target_encoder(x, mask=mask)
-                        all_rep = F.layer_norm(all_rep, (all_rep.size(-1),))  # normalize over feature-dim
+                        # all_rep = F.layer_norm(all_rep, (all_rep.size(-1),))  # normalize over feature-dim
                         all_rep = all_rep.repeat_interleave(num_tgt_blk, dim=0)
                         # -- create targets (masked regions of h)
                         tgt_indices_ = tgt_indices.unsqueeze(-1).expand(-1, -1, all_rep.size(-1))
