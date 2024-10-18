@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/TCAF.iml" filepath="$PROJECT_DIR$/.idea/TCAF.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/VALS.iml" filepath="$PROJECT_DIR$/.idea/VALS.iml" />
     </modules>
   </component>
 </project>

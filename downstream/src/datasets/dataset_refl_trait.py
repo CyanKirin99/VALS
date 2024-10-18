@@ -10,12 +10,14 @@ class SupervisedDataset(Dataset):
     def __init__(self, spec_path, trait_path, tasks, output_dims):
         self.spec_df_origin = pd.read_csv(spec_path)
         self.trait_df_origin = pd.read_csv(trait_path)
+        self.trait_df_origin = self.trait_df_origin[self.trait_df_origin['uid'].isin(self.spec_df_origin['uid'])]
+
         self.tasks = tasks
         self.output_dims = output_dims
 
         valid_mask = self.trait_df_origin[tasks].notna().squeeze()
         self.trait_df = self.trait_df_origin[valid_mask].reset_index(drop=True)
-        self.spec_df = self.spec_df_origin[valid_mask].reset_index(drop=True)
+        self.spec_df = self.spec_df_origin[self.spec_df_origin['uid'].isin(self.trait_df['uid'])].reset_index(drop=True)
 
         self.uid = self.spec_df['uid']
         self.scaler_dict = self._compute_scaler()

@@ -14,6 +14,7 @@ def main(args):
     # -- META
     _GLOBAL_SEED = args['meta']['seed']
     n_components = args['meta']['n_components']
+    output_dims = args['meta']['output_dims']
 
     # --
     np.random.seed(_GLOBAL_SEED)
@@ -24,20 +25,34 @@ def main(args):
     batch_size = args['data']['batch_size']
     pin_mem = args['data']['pin_mem']
     num_workers = args['data']['num_workers']
-    spec_path = args['data']['spec_path']
-    trait_path = args['data']['trait_path']
     tasks = args['data']['tasks']
     split_ratio = args['data']['split_ratio']
+    spec_path = args['data']['spec_path']
+    trait_path = args['data']['trait_path']
+    if isinstance(spec_path, dict):
+        train_spec_path = spec_path['train']
+        test_spec_path = spec_path['test']
+        train_trait_path = trait_path['train']
+        test_trait_path = trait_path['test']
+        split_ratio = (1., 0.)
 
+    # -- Logging
     save_dir = args['log']['save_dir']
+    tag = args['log']['tag']
 
     assert len(tasks) == 1, 'Only one task is supported'
     tk = tasks[0]
 
     # --
+    if not isinstance(spec_path, dict):
+        dataset, train_loader, test_loader = make_dataset(spec_path, trait_path, tasks, output_dims, split_ratio,
+                                                          batch_size, pin_mem, num_workers)
+    else:
+        dataset, train_loader, _ = make_dataset(train_spec_path, train_trait_path, tasks, output_dims, split_ratio,
+                                                batch_size, pin_mem, num_workers)
+        dataset, test_loader, _ = make_dataset(test_spec_path, test_trait_path, tasks, output_dims, split_ratio,
+                                               batch_size, pin_mem, num_workers)
 
-    dataset, train_loader, test_loader = make_dataset(spec_path, trait_path, tasks, split_ratio,
-                                                      batch_size, pin_mem, num_workers)
     scaler_dict = dataset.scaler_dict
     median = scaler_dict[tk]['Median']
     IQR = scaler_dict[tk]['IQR']
@@ -77,7 +92,7 @@ def main(args):
 
     plot_complex_scatters(y_train * IQR + median, y_pred_train * IQR + median,
                           y_test * IQR + median, y_pred_test * IQR + median,
-                          model_name='PLSR', trait_name='CHLa', save_dir=save_dir)
+                          model_name='PLSR', trait_name=f'{tag}_{tk}', save_dir=save_dir)
 
 
 if __name__ == '__main__':

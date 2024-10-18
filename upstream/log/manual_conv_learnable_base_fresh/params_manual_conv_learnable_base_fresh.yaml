@@ -13,7 +13,7 @@ mask:
   tgt_p_len: 6
 meta:
   dataset_name: fresh
-  load_checkpoint: true
+  load_checkpoint: false
   model_size: base
   patch_size: 30
   pe_type: learnable
