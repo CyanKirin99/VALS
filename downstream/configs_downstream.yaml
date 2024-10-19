@@ -19,7 +19,7 @@ meta:
   pe_type: learnable
   model_size: small
   dataset_name: not_tree
-  pred_type: ignore
+  pred_type: complete
   output_dims:
     LMA: 1
   notes: not_tree_lma
