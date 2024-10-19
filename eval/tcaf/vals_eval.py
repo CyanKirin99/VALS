@@ -47,10 +47,16 @@ def main(args):
     batch_size = args['data']['batch_size']
     pin_mem = args['data']['pin_mem']
     num_workers = args['data']['num_workers']
-    spec_path = args['data']['spec_path']
-    trait_path = args['data']['trait_path']
     tasks = args['data']['tasks']
     split_ratio = args['data']['split_ratio']
+    spec_path = args['data']['spec_path']
+    trait_path = args['data']['trait_path']
+    if isinstance(spec_path, dict):
+        train_spec_path = spec_path['train']
+        test_spec_path = spec_path['test']
+        train_trait_path = trait_path['train']
+        test_trait_path = trait_path['test']
+        split_ratio = (1., 0.)
 
     # -- log/checkpointing paths
     folder = args['logging']['folder']
@@ -85,9 +91,15 @@ def main(args):
         up_model = IgnoreUpstreamModel(embedding, encoder).to(device)
     up_model.eval()
 
-    # -- init data-loaders/samplers
-    dataset, train_loader, test_loader = make_dataset(spec_path, trait_path, tasks, output_dims, split_ratio,
-                                                      batch_size, pin_mem, num_workers)
+    # -- init dataset
+    if not isinstance(spec_path, dict):
+        dataset, train_loader, test_loader = make_dataset(spec_path, trait_path, tasks, output_dims, split_ratio,
+                                                          batch_size, pin_mem, num_workers)
+    else:
+        dataset, train_loader, _ = make_dataset(train_spec_path, train_trait_path, tasks, output_dims, split_ratio,
+                                                batch_size, pin_mem, num_workers)
+        dataset, test_loader, _ = make_dataset(test_spec_path, test_trait_path, tasks, output_dims, split_ratio,
+                                               batch_size, pin_mem, num_workers)
     denorm = Denormalize(dataset.scaler_dict)
 
     # -- eval
@@ -146,7 +158,7 @@ def main(args):
     # -- 回归任务性能评估
     def eval_reg(y_train, y_pred_train, y_test, y_pred_test, tk):
         plot_complex_scatters(y_train, y_pred_train, y_test, y_pred_test,
-                              model_name='TCAF', trait_name=tk)
+                              model_name='VALS', trait_name=tk)
 
     train_outputs, train_trait = eval(train_loader)
     test_outputs, test_trait = eval(test_loader)
@@ -167,7 +179,7 @@ def main(args):
 
 
 if __name__ == "__main__":
-    with open('configs_tcaf.yaml', 'r') as y_file:
+    with open('configs_vals.yaml', 'r') as y_file:
         args = yaml.load(y_file, Loader=yaml.FullLoader)
 
     main(args)
