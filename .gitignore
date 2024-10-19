@@ -2,3 +2,4 @@
 *.pth.tar
 **/mirror_log/
 **/mirror_chechpoints/
+.idea/

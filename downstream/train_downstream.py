@@ -45,7 +45,7 @@ def main(args):
     pred_emb_dim = args['meta']['pred_emb_dim']
     output_dims = args['meta']['output_dims']  # downstream special
 
-    load_regressor = args['meta']['load_regressor']
+    load_processor = args['meta']['load_processor']
     r_file = args['meta']['read_checkpoint']
     freeze_encoder = args['meta']['freeze_encoder']  # downstream special
 
@@ -113,7 +113,7 @@ def main(args):
     csv_logger = CSVLogger(log_file, *columns)
 
     model_name = f'encoder_{model_size}'
-    embedding, encoder, predictor, regressor = init_model(
+    embedding, encoder, predictor, processor = init_model(
         device=device,
         tasks=tasks,
         model_name=model_name,
@@ -132,7 +132,7 @@ def main(args):
     ipe = len(train_loader)
 
     optimizers, scalers, schedulers, wd_schedulers = init_opt(
-        regressor=regressor,
+        processor=processor,
         iterations_per_epoch=ipe,
         start_lr=start_lr,
         ref_lr=lr,
@@ -153,16 +153,16 @@ def main(args):
 
     start_epoch = 0
     # -- load training checkpoint
-    embedding, encoder, predictor, regressor, opt, scaler, epoch = load_checkpoint(
+    embedding, encoder, predictor, processor, opt, scaler, epoch = load_checkpoint(
         device=device,
         r_path=load_path,
         embedding=embedding,
         encoder=encoder,
         predictor=predictor,
-        regressor=regressor,
+        processor=processor,
         opts=optimizers,
         scalers=scalers,
-        load_regressor=load_regressor,)
+        load_processor=load_processor,)
     for _ in range(start_epoch*ipe):
         for tk in tasks:
             schedulers[tk].step()
@@ -181,7 +181,7 @@ def main(args):
             'embedding': embedding.state_dict(),
             'encoder': encoder.state_dict(),
             'predictor': predictor.state_dict(),
-            'regressor': regressor.state_dict(),
+            'processor': processor.state_dict(),
             'opt': optimizers,
             'scaler': None if scalers is None else scalers,
             'epoch': epoch,
@@ -228,9 +228,9 @@ def main(args):
 
                 def forward_downstream(x, mask=None):
                     if pred_type == 'complete':
-                        outputs = regressor(x)
+                        outputs = processor(x)
                     elif pred_type == 'ignore':
-                        outputs = regressor(x, mask=mask)
+                        outputs = processor(x, mask=mask)
 
                     loss_dict = {tk: torch.tensor(0.0).to(device) for tk in tasks}
                     for tk in tasks:
@@ -251,7 +251,7 @@ def main(args):
                     if not torch.isnan(loss):
                         loss.backward()
                         optimizers[tk].step()
-                    grad_stats_dict[tk] = grad_logger(regressor.output[tk].named_parameters())
+                    grad_stats_dict[tk] = grad_logger(processor.output[tk].named_parameters())
 
                 return loss_dict, lr_dict, wd_dict, grad_stats_dict
 

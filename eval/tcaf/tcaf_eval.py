@@ -29,7 +29,7 @@ def main(args):
     pred_emb_dim = args['meta']['pred_emb_dim']
     output_dims = args['meta']['output_dims']
 
-    load_regressor = args['meta']['load_regressor']
+    load_processor = args['meta']['load_processor']
     r_file = args['meta']['read_checkpoint']
 
     if not torch.cuda.is_available():
@@ -57,7 +57,7 @@ def main(args):
     load_path = os.path.join(folder, r_file)
 
     model_name = f'encoder_{model_size}'
-    embedding, encoder, predictor, regressor = init_model(
+    embedding, encoder, predictor, processor = init_model(
         device=device,
         tasks=tasks,
         model_name=model_name,
@@ -69,14 +69,14 @@ def main(args):
         preprocess=preprocess,
         pe_type=pe_type)
 
-    embedding, encoder, predictor, regressor, _, _, _ = load_checkpoint(
+    embedding, encoder, predictor, processor, _, _, _ = load_checkpoint(
         device=device,
         r_path=load_path,
         embedding=embedding,
         encoder=encoder,
         predictor=predictor,
-        regressor=regressor,
-        load_regressor=load_regressor)
+        processor=processor,
+        load_processor=load_processor)
 
     # -- define upstream model
     if pred_type == 'complete':
@@ -98,9 +98,9 @@ def main(args):
             with torch.no_grad():
                 x, mask = up_model(x)
                 if pred_type == 'complete':
-                    outputs = regressor(x)
+                    outputs = processor(x)
                 elif pred_type == 'ignore':
-                    outputs = regressor(x, mask=mask)
+                    outputs = processor(x, mask=mask)
 
             # -- save & transform
             for tk, o in outputs.items():

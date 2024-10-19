@@ -30,7 +30,7 @@ meta:
     LMA: 1
     CHL: 1
     Type: 4
-  load_regressor: true
+  load_processor: true
   read_checkpoint: manual_conv_learnable_base_fresh_complete_cabo_lma-latest.pth.tar
   patch_size: 30
   pred_emb_dim: 96

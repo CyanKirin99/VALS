@@ -1,27 +1,27 @@
 data:
   batch_size: 1800
+  file_path: ../data/with_label/lma_good/refl_not_tree.csv
   num_workers: 0
   pin_mem: true
-  file_path: ../data/with_label/lma_good/refl_not_tree.csv
 logging:
-  log_timings: true
-  log_freq: 1
   checkpoint_freq: 50
+  log_freq: 1
+  log_timings: true
 mask:
+  cxt_p_len: 24
   num_tgt_blk: 4
   tgt_p_len: 6
-  cxt_p_len: 24
 meta:
-  preprocess: manual
-  proj_type: conv
-  pe_type: learnable
-  model_size: small
   dataset_name: not_tree
   load_checkpoint: true
-  read_checkpoint: manual_conv_learnable_small_not_tree-latest.pth.tar
+  model_size: small
   patch_size: 30
-  pred_emb_dim: 96
+  pe_type: learnable
   pred_depth: 2
+  pred_emb_dim: 96
+  preprocess: manual
+  proj_type: conv
+  read_checkpoint: manual_conv_learnable_small_not_tree_withnorm-latest.pth.tar
   seed: 42
   use_bfloat16: true
 optimization:
@@ -33,6 +33,6 @@ optimization:
   final_weight_decay: 0.4
   ipe_scale: 1.0
   lr: 0.0001
-  start_lr: 0.00002
+  start_lr: 2.0e-05
   warmup: 10
   weight_decay: 0.04

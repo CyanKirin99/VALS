@@ -6,7 +6,7 @@ import torch
 
 import upstream.src.models.encoders as encoders
 from upstream.src.models.embedding import ManualEmbedding, AutomaticEmbedding
-from downstream.src.models.regressor import Regressor
+from downstream.src.models.processor import TaskProcessor
 from upstream.src.utils.tensors import trunc_normal_
 from upstream.src.utils.schedulers import (
     WarmupCosineSchedule,
@@ -39,7 +39,7 @@ def init_model(
     )
     embedding = ManualEmbedding(encoder.embed_dim, patch_size, proj_type=proj_type) if preprocess == 'manual' \
         else AutomaticEmbedding(encoder.embed_dim, patch_size, proj_type=proj_type)
-    regressor = Regressor(tasks=tasks, input_dim=encoder.embed_dim, output_dims=output_dims)
+    processor = TaskProcessor(tasks=tasks, input_dim=encoder.embed_dim, output_dims=output_dims)
 
     def init_weights(m):
         if isinstance(m, torch.nn.Linear):
@@ -54,16 +54,16 @@ def init_model(
             if m.bias is not None:
                 torch.nn.init.constant_(m.bias, 0)
 
-    for m in regressor.modules():
+    for m in processor.modules():
         init_weights(m)
 
     embedding.to(device)
     encoder.to(device)
-    regressor.to(device)
+    processor.to(device)
 
-    logger.info(regressor)
+    logger.info(processor)
 
-    return embedding, encoder, predictor, regressor
+    return embedding, encoder, predictor, processor
 
 
 def load_checkpoint(
@@ -72,10 +72,10 @@ def load_checkpoint(
         embedding,
         encoder,
         predictor,
-        regressor,
+        processor,
         opts=None,
         scalers=None,
-        load_regressor=False,
+        load_processor=False,
 ):
     try:
         checkpoint = torch.load(r_path, map_location=torch.device('cpu'))
@@ -96,13 +96,13 @@ def load_checkpoint(
         msg = predictor.load_state_dict(pretrained_dict)
         logger.info(f'loaded pretrained predictor with msg: {msg}')
 
-        if load_regressor:
+        if load_processor:
             try:
-                pretrained_dict = checkpoint['regressor']
+                pretrained_dict = checkpoint['processor']
             except KeyError as e:
-                print(f'No key named "regressor" found in checkpoint: {e}')
-            msg = regressor.load_state_dict(pretrained_dict)
-            logger.info(f'loaded pretrained regressor from epoch {epoch} with msg: {msg}')
+                print(f'No key named "processor" found in checkpoint: {e}')
+            msg = processor.load_state_dict(pretrained_dict)
+            logger.info(f'loaded pretrained processor from epoch {epoch} with msg: {msg}')
             # -- loading optimizer
             opts.load_state_dict(checkpoint['opt'])
             if scalers is not None:
@@ -115,11 +115,11 @@ def load_checkpoint(
         logger.info(f'Encountered exception when loading checkpoint {e}')
         epoch = 0
 
-    return embedding, encoder, predictor, regressor, opts, scalers, epoch
+    return embedding, encoder, predictor, processor, opts, scalers, epoch
 
 
 def init_opt(
-        regressor,
+        processor,
         iterations_per_epoch,
         start_lr,
         ref_lr,
@@ -131,16 +131,16 @@ def init_opt(
         use_bfloat16=False,
         ipe_scale=1.25
 ):
-    tasks = regressor.tasks
+    tasks = processor.tasks
     optimizers, scalers, schedulers, wd_schedulers = {}, {}, {}, {}
 
     for tk in tasks:
         param_groups = [
             {
-                'params': (p for n, p in regressor.output[tk].named_parameters()
+                'params': (p for n, p in processor.output[tk].named_parameters()
                            if ('bias' not in n) and (len(p.shape) != 1))
             }, {
-                'params': (p for n, p in regressor.output[tk].named_parameters()
+                'params': (p for n, p in processor.output[tk].named_parameters()
                            if ('bias' in n) or (len(p.shape) == 1)),
                 'WD_exclude': True,
                 'weight_decay': 0
