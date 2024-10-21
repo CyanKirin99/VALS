@@ -3,23 +3,25 @@ data:
   num_workers: 0
   pin_mem: false
 #  spec_path: ../../data/with_label/lma_good/refl_is_tree.csv
-  spec_path:
-    train: ../../data/with_label/lma_good/refl_not_tree.csv
-    test: ../../data/with_label/lma_good/refl_is_tree.csv
+  spec_path: ../../data/with_label/all/refl/103.csv
+#  spec_path:
+#    train: ../../data/with_label/lma_good/refl_not_tree.csv
+#    test: ../../data/with_label/lma_good/refl_is_tree.csv
   split_ratio:
-    - 1
-    - 0
+    - 0.7
+    - 0.3
   tasks:
-    - LMA
+    - RWC
 #  trait_path: ../../data/with_label/lma_good/trait_is_tree.csv
-  trait_path:
-    train: ../../data/with_label/lma_good/trait_not_tree.csv
-    test: ../../data/with_label/lma_good/trait_is_tree.csv
+  trait_path: ../../data/with_label/AllTraitsFilted.csv
+#  trait_path:
+#    train: ../../data/with_label/lma_good/trait_not_tree.csv
+#    test: ../../data/with_label/lma_good/trait_is_tree.csv
 meta:
-  n_components: 10
+  n_components: 5
   output_dims:
-    LMA: 1
+    Type: 2
   seed: 42
 logging:
-  save: true
+  save: false
   tag: lma_train_not_tree_test_is_tree

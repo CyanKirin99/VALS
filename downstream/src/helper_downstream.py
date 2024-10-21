@@ -39,6 +39,7 @@ def init_model(
     )
     embedding = ManualEmbedding(encoder.embed_dim, patch_size, proj_type=proj_type) if preprocess == 'manual' \
         else AutomaticEmbedding(encoder.embed_dim, patch_size, proj_type=proj_type)
+    output_dims.update({tk: 1 for tk in tasks if tk not in output_dims})  # 默认输出维度为1
     processor = Processor(tasks=tasks, input_dim=encoder.embed_dim, output_dims=output_dims)
 
     def init_weights(m):

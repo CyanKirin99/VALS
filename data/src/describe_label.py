@@ -1,7 +1,7 @@
 import pandas as pd
 
 # 读取过滤后的 CSV 文件
-file_path = '../with_label/AllTraitsFilted.csv'  # 替换为您的过滤后文件路径
+file_path = '../with_label/lma_good/trait.csv'  # 替换为您的过滤后文件路径
 data = pd.read_csv(file_path)
 
 # 创建一个字典来存储统计结果
@@ -39,4 +39,4 @@ stats_df = pd.DataFrame(stats).T  # 转置，使列名为列，行名为统计�
 print(stats_df)
 
 # 将统计结果保存为新的 CSV 文件
-stats_df.to_csv('../with_label/statistics_traits.csv', index_label='trait')
+stats_df.to_csv('../with_label/lma_good_statistics_traits.csv', index_label='trait')

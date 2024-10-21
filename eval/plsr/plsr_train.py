@@ -70,6 +70,7 @@ def main(args):
 
     # --
     resampler = FilterResampler()
+    output_dims.update({tk: 1 for tk in tasks if tk not in output_dims})  # 默认输出维度为1
     if not isinstance(spec_path, dict):
         dataset, train_loader, test_loader = make_dataset(spec_path, trait_path, tasks, output_dims, split_ratio,
                                                           batch_size, pin_mem, num_workers)

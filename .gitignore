@@ -1,6 +1,7 @@
 *.csv
+*.xlsx
 *.pth.tar
-*.png
 **/mirror_log/
 **/mirror_chechpoints/
 .idea/
+fig/

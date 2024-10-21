@@ -5,7 +5,7 @@ import numpy as np
 
 
 # 读取CSV文件
-file_path = '../with_label/AllTraitsFilted.csv'  # 请替换为你的CSV文件路径
+file_path = '../with_label/lma_good/trait.csv'  # 请替换为你的CSV文件路径
 data = pd.read_csv(file_path)
 
 # 选择数值列
@@ -23,6 +23,6 @@ sns.heatmap(correlation_matrix, mask=mask, cmap='coolwarm', annot=True, fmt=".2f
             square=True, cbar_kws={"shrink": .8}, linewidths=0.5)
 
 plt.title('Traits Correlation Heatmap', fontsize=18)
-plt.savefig('C:/file/Research/projects/TCAF/fig/correlation_heatmap.png',
+plt.savefig('../../fig/correlation_heatmap.png',
             bbox_inches='tight', dpi=300)
 plt.show()
