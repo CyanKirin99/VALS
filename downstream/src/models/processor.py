@@ -47,9 +47,9 @@ class Output(nn.Module):
         return y
 
 
-class TaskProcessor(nn.Module):
+class Processor(nn.Module):
     def __init__(self, tasks, input_dim, output_dims, init_std=0.02):
-        super(TaskProcessor, self).__init__()
+        super(Processor, self).__init__()
         self.input_dim = input_dim
         self.output_dims = output_dims
 
@@ -91,7 +91,7 @@ class TaskProcessor(nn.Module):
 
             # Step 3: 将每组的张量送入后续神经网络处理
             for tk in self.tasks:
-                task_output = self.output[tk](filtered_x).squeeze()
+                task_output = self.output[tk](filtered_x).reshape(-1)
                 if tk not in outputs:
                     outputs[tk] = {}
                 outputs[tk][count] = task_output

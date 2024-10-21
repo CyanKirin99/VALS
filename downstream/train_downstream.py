@@ -14,10 +14,11 @@ from upstream.src.utils.loggings import (
     CSVLogger,
     gpu_timer,
     grad_logger,
-    AverageMeter,)
+    AverageMeter, )
 from downstream.src.datasets.dataset_refl_trait import make_dataset
 from downstream.src.helper_downstream import (
     load_checkpoint,
+    load_processor,
     init_model,
     init_opt)
 from downstream.src.models.upstream_model import CompleteUpstreamModel, IgnoreUpstreamModel
@@ -45,10 +46,8 @@ def main(args):
     pred_emb_dim = args['meta']['pred_emb_dim']
     output_dims = args['meta']['output_dims']  # downstream special
 
-    load_processor = args['meta']['load_processor']
-    r_file = args['meta']['read_checkpoint']
-    freeze_encoder = args['meta']['freeze_encoder']  # downstream special
-
+    upstream_dir = args['meta']['upstream_dir']
+    processor_dir = args['meta']['processor_dir']
 
     if not torch.cuda.is_available():
         device = torch.device('cpu')
@@ -101,16 +100,19 @@ def main(args):
     except Exception:
         pass
 
+    # -- init data-loaders/samplers
+    dataset, train_loader, test_loader = make_dataset(spec_path, trait_path, tasks, output_dims, split_ratio,
+                                                      batch_size, pin_mem, num_workers)
+    scaler_dict = dataset.scaler_dict
+    ipe = len(train_loader)
+
     # -- log/checkpointing paths
+    upstream_path = os.path.join(folder, upstream_dir)
     log_file = os.path.join(folder, f'{tag}.csv')
     save_path = os.path.join(folder, f'{tag}' + '-ep{epoch}.pth.tar')
     latest_path = os.path.join(folder, f'{tag}-latest.pth.tar')
-    load_path = os.path.join(folder, r_file) if r_file is not None else latest_path
-
-    # -- make csv_logger
-    columns = ([('%d', 'epoch'), ('%d', 'itr')] + [(f'%.6f', 'loss_'+tk) for tk in tasks] +
-               [(f'%.2e', 'lr_'+tk) for tk in tasks] + [(f'%.2e', 'wd_'+tk) for tk in tasks])
-    csv_logger = CSVLogger(log_file, *columns)
+    if processor_dir:
+        processor_path = os.path.join(folder, processor_dir)
 
     model_name = f'encoder_{model_size}'
     embedding, encoder, predictor, processor = init_model(
@@ -123,13 +125,23 @@ def main(args):
         proj_type=proj_type,
         output_dims=output_dims,
         preprocess=preprocess,
-        pe_type=pe_type,)
+        pe_type=pe_type)
 
-    # -- init data-loaders/samplers
-    dataset, train_loader, test_loader = make_dataset(spec_path, trait_path, tasks, output_dims, split_ratio,
-                                                      batch_size, pin_mem, num_workers)
-    scaler_dict = dataset.scaler_dict
-    ipe = len(train_loader)
+    # -- load upstream checkpoint
+    embedding, encoder, predictor = load_checkpoint(
+        device=device,
+        upstream_path=upstream_path,
+        embedding=embedding,
+        encoder=encoder,
+        predictor=predictor)
+    # -- define upstream model
+    if pred_type == 'complete':
+        up_model = CompleteUpstreamModel(embedding, encoder, predictor).to(device)
+    elif pred_type == 'ignore':
+        up_model = IgnoreUpstreamModel(embedding, encoder).to(device)
+    up_model.eval()
+    for p in up_model.parameters():
+        p.requires_grad = False
 
     optimizers, scalers, schedulers, wd_schedulers = init_opt(
         processor=processor,
@@ -145,42 +157,27 @@ def main(args):
         ipe_scale=ipe_scale
     )
 
-    if freeze_encoder:
-        for p in embedding.parameters():
-            p.requires_grad = False
-        for p in encoder.parameters():
-            p.requires_grad = False
-
     start_epoch = 0
-    # -- load training checkpoint
-    embedding, encoder, predictor, processor, opt, scaler, epoch = load_checkpoint(
-        device=device,
-        r_path=load_path,
-        embedding=embedding,
-        encoder=encoder,
-        predictor=predictor,
-        processor=processor,
-        opts=optimizers,
-        scalers=scalers,
-        load_processor=load_processor,)
-    for _ in range(start_epoch*ipe):
-        for tk in tasks:
-            schedulers[tk].step()
-            wd_schedulers[tk].step()
+    if processor_dir:
+        processor, opt, scaler, start_epoch = load_processor(
+            device=device,
+            processor_path=processor_path,
+            processor=processor,
+            opt=optimizers,
+            scaler=scalers
+        )
+        for _ in range(start_epoch * ipe):
+            for tk in tasks:
+                schedulers[tk].step()
+                wd_schedulers[tk].step()
 
-    # -- define upstream model
-    if pred_type == 'complete':
-        up_model = CompleteUpstreamModel(embedding, encoder, predictor).to(device)
-    elif pred_type == 'ignore':
-        up_model = IgnoreUpstreamModel(embedding, encoder).to(device)
-    if freeze_encoder:
-        up_model.eval()
+    # -- make csv_logger
+    columns = ([('%d', 'epoch'), ('%d', 'itr')] + [(f'%.6f', 'loss_' + tk) for tk in tasks] +
+               [(f'%.2e', 'lr_' + tk) for tk in tasks] + [(f'%.2e', 'wd_' + tk) for tk in tasks])
+    csv_logger = CSVLogger(log_file, *columns)
 
     def save_checkpoint(epoch):
         save_dict = {
-            'embedding': embedding.state_dict(),
-            'encoder': encoder.state_dict(),
-            'predictor': predictor.state_dict(),
             'processor': processor.state_dict(),
             'opt': optimizers,
             'scaler': None if scalers is None else scalers,
@@ -194,7 +191,7 @@ def main(args):
 
     # -- TRAINING LOOP
     for epoch in range(start_epoch, num_epochs):
-        logging.info(f'Epoch {epoch+1}')
+        logging.info(f'Epoch {epoch + 1}')
 
         loss_meter = {tk: AverageMeter() for tk in tasks}
         time_meter = AverageMeter()
@@ -219,10 +216,7 @@ def main(args):
                         return F.cross_entropy(o, t.to(o.device).long())
 
                 def forward_upstream(refl):
-                    if freeze_encoder:
-                        with torch.no_grad():
-                            x, mask = up_model(refl)
-                    else:
+                    with torch.no_grad():
                         x, mask = up_model(refl)
                     return x, mask
 
@@ -262,7 +256,7 @@ def main(args):
 
             # -- Logging
             def log_stats():
-                log_data = ([epoch+1, itr] + [loss_dict[tk] for tk in tasks] +
+                log_data = ([epoch + 1, itr] + [loss_dict[tk] for tk in tasks] +
                             [lr_dict[tk] for tk in tasks] + [wd_dict[tk] for tk in tasks])
                 csv_logger.log(*log_data)
 
@@ -281,7 +275,7 @@ def main(args):
                         grad_stats = grad_stats_dict[tk]
                         if grad_stats is not None:
                             logger.info('[%d %5d] %s_grad_stats: [(%.2e %.2e)] [(%.2e, %.2e)]'
-                                        % (epoch+1, itr, tk,
+                                        % (epoch + 1, itr, tk,
                                            grad_stats.first_ca_layer,
                                            grad_stats.last_ca_layer,
                                            grad_stats.min,
@@ -292,9 +286,9 @@ def main(args):
 
             log_stats()
 
-        epoch_loss_info = f'epoch_{epoch+1}\t' + ' '.join([f'{tk}_loss: {loss_meter[tk].avg:.6f}\t' for tk in tasks])
+        epoch_loss_info = f'epoch_{epoch + 1}\t' + ' '.join([f'{tk}_loss: {loss_meter[tk].avg:.6f}\t' for tk in tasks])
         logger.info(epoch_loss_info)
-        save_checkpoint(epoch+1)
+        save_checkpoint(epoch + 1)
 
 
 def process_main(rank, fname, world_size, devices):

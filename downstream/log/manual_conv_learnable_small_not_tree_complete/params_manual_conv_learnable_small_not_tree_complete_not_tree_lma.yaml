@@ -4,8 +4,8 @@ data:
   pin_mem: true
   spec_path: ../data/with_label/lma_good/refl_not_tree.csv
   split_ratio:
-  - 0.7
-  - 0.3
+  - 1
+  - 0
   tasks:
   - LMA
   trait_path: ../data/with_label/lma_good/trait_not_tree.csv
@@ -15,8 +15,6 @@ logging:
   log_timings: true
 meta:
   dataset_name: not_tree
-  freeze_encoder: true
-  load_processor: false
   model_size: small
   notes: not_tree_lma
   output_dims:
@@ -27,16 +25,17 @@ meta:
   pred_emb_dim: 96
   pred_type: complete
   preprocess: manual
+  processor_dir: false
   proj_type: conv
-  read_checkpoint: manual_conv_learnable_small_not_tree-ep3000.pth.tar
   seed: 42
+  upstream_dir: manual_conv_learnable_small_not_tree-ep3000.pth.tar
   use_bfloat16: false
 optimization:
   epochs: 1000
   final_lr: 1.0e-06
   final_weight_decay: 0.4
   ipe_scale: 1.0
-  lr: 0.0001
-  start_lr: 2.0e-05
+  lr: 0.001
+  start_lr: 0.0002
   warmup: 10
   weight_decay: 0.04

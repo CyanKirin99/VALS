@@ -45,7 +45,7 @@ def plot_complex_scatters(y_train, y_pred_train, y_test, y_pred_test,
     plt.figure(figsize=(8, 6), dpi=1200)
     g = sns.JointGrid(data=data, x="True", y="Predicted", hue="Data Set", height=10, palette=palette)
 
-    g.plot_joint(sns.scatterplot, alpha=0.5)  # 绘制中心的散点图
+    g.plot_joint(sns.scatterplot, alpha=0.2)  # 绘制中心的散点图
     # 回归线
     sns.regplot(data=data_train, x="True", y="Predicted", scatter=False, ax=g.ax_joint, color='#b4d4e1', label='Train Regression Line')
     sns.regplot(data=data_test, x="True", y="Predicted", scatter=False, ax=g.ax_joint, color='#f4ba8a', label='Test Regression Line')

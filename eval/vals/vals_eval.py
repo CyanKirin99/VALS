@@ -4,7 +4,7 @@ import numpy as np
 import torch
 import matplotlib.pyplot as plt
 
-from downstream.src.helper_downstream import init_model, load_checkpoint
+from downstream.src.helper_downstream import init_model, load_checkpoint, load_processor
 from downstream.src.datasets.dataset_refl_trait import make_dataset
 from eval.utils.denormalization import Denormalize
 from eval.utils.visualize import plot_scatters, plot_complex_scatters
@@ -22,15 +22,15 @@ def main(args):
     proj_type = args['meta']['proj_type']
     model_size = args['meta']['model_size']
     pe_type = args['meta']['pe_type']
-    pred_type = args['meta']['pred_type']  # downstream special
+    pred_type = args['meta']['pred_type']
 
     patch_size = args['meta']['patch_size']
     pred_depth = args['meta']['pred_depth']
     pred_emb_dim = args['meta']['pred_emb_dim']
     output_dims = args['meta']['output_dims']
 
-    load_processor = args['meta']['load_processor']
-    r_file = args['meta']['read_checkpoint']
+    upstream_dir = args['meta']['upstream_dir']
+    processor_dir = args['meta']['processor_dir']
 
     if not torch.cuda.is_available():
         device = torch.device('cpu')
@@ -60,7 +60,11 @@ def main(args):
 
     # -- log/checkpointing paths
     folder = args['logging']['folder']
-    load_path = os.path.join(folder, r_file)
+    upstream_path = os.path.join(folder, upstream_dir)
+    processor_path = os.path.join(folder, processor_dir)
+    tag = args['logging']['tag']
+    save = args['logging']['save']
+    save_fig = os.path.join('../../fig/vals/', f'{tag}.png') if save else False
 
     model_name = f'encoder_{model_size}'
     embedding, encoder, predictor, processor = init_model(
@@ -75,37 +79,39 @@ def main(args):
         preprocess=preprocess,
         pe_type=pe_type)
 
-    embedding, encoder, predictor, processor, _, _, _ = load_checkpoint(
+    embedding, encoder, predictor = load_checkpoint(
         device=device,
-        r_path=load_path,
+        upstream_path=upstream_path,
         embedding=embedding,
         encoder=encoder,
-        predictor=predictor,
-        processor=processor,
-        load_processor=load_processor)
+        predictor=predictor)
 
-    # -- define upstream model
+    # -- load upstream model
     if pred_type == 'complete':
         up_model = CompleteUpstreamModel(embedding, encoder, predictor).to(device)
     elif pred_type == 'ignore':
         up_model = IgnoreUpstreamModel(embedding, encoder).to(device)
     up_model.eval()
+    for p in up_model.parameters():
+        p.requires_grad = False
 
-    # -- init dataset
-    if not isinstance(spec_path, dict):
-        dataset, train_loader, test_loader = make_dataset(spec_path, trait_path, tasks, output_dims, split_ratio,
-                                                          batch_size, pin_mem, num_workers)
-    else:
-        dataset, train_loader, _ = make_dataset(train_spec_path, train_trait_path, tasks, output_dims, split_ratio,
-                                                batch_size, pin_mem, num_workers)
-        dataset, test_loader, _ = make_dataset(test_spec_path, test_trait_path, tasks, output_dims, split_ratio,
-                                               batch_size, pin_mem, num_workers)
-    denorm = Denormalize(dataset.scaler_dict)
+    # -- load processor
+    processor, _, _, _ = load_processor(
+        device=device,
+        processor_path=processor_path,
+        processor=processor,
+    )
+    processor.eval()
+    for p in processor.parameters():
+        p.requires_grad = False
 
     # -- eval
-    def eval(loader):
+    def eval(loader, max_itr=np.inf):
         all_outputs, all_trait = {}, {}
         for itr, (x, trait) in enumerate(loader):
+            if itr > max_itr:
+                break
+
             x = x.to(device)
             with torch.no_grad():
                 x, mask = up_model(x)
@@ -131,6 +137,23 @@ def main(args):
 
         all_outputs, all_trait = denorm(all_outputs, all_trait, output_dims)
         return all_outputs, all_trait
+
+    # -- init dataset
+    if not isinstance(spec_path, dict):
+        dataset, train_loader, test_loader = make_dataset(spec_path, trait_path, tasks, output_dims, split_ratio,
+                                                          batch_size, pin_mem, num_workers)
+        denorm = Denormalize(dataset.scaler_dict)
+        train_outputs, train_trait = eval(train_loader)
+        test_outputs, test_trait = eval(test_loader)
+    else:
+        dataset, train_loader, _ = make_dataset(train_spec_path, train_trait_path, tasks, output_dims, split_ratio,
+                                                batch_size, pin_mem, num_workers)
+        dataset, test_loader, _ = make_dataset(test_spec_path, test_trait_path, tasks, output_dims, split_ratio,
+                                               batch_size, pin_mem, num_workers)
+        max_itr = min(len(train_loader), len(test_loader))
+        denorm = Denormalize(dataset.scaler_dict)
+        train_outputs, train_trait = eval(train_loader, max_itr=max_itr)
+        test_outputs, test_trait = eval(test_loader, max_itr=max_itr)
 
     # -- 分类任务性能评估
     def eval_cls(y_train, y_pred_train, y_test, y_pred_test):
@@ -158,10 +181,7 @@ def main(args):
     # -- 回归任务性能评估
     def eval_reg(y_train, y_pred_train, y_test, y_pred_test, tk):
         plot_complex_scatters(y_train, y_pred_train, y_test, y_pred_test,
-                              model_name='VALS', trait_name=tk)
-
-    train_outputs, train_trait = eval(train_loader)
-    test_outputs, test_trait = eval(test_loader)
+                              model_name='VALS', trait_name=tk, save_dir=save_fig)
 
     # -- plot result
     for tk in tasks:

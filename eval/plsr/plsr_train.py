@@ -1,5 +1,5 @@
 import numpy as np
-import pandas as pd
+import os
 import torch
 import yaml
 
@@ -37,33 +37,20 @@ def main(args):
         split_ratio = (1., 0.)
 
     # -- Logging
-    save_dir = args['log']['save_dir']
-    tag = args['log']['tag']
+    tag = args['logging']['tag']
+    save = args['logging']['save']
+    save_fig = os.path.join('../../fig/plsr/', f'{tag}.png') if save else False
 
     assert len(tasks) == 1, 'Only one task is supported'
     tk = tasks[0]
 
-    # --
-    if not isinstance(spec_path, dict):
-        dataset, train_loader, test_loader = make_dataset(spec_path, trait_path, tasks, output_dims, split_ratio,
-                                                          batch_size, pin_mem, num_workers)
-    else:
-        dataset, train_loader, _ = make_dataset(train_spec_path, train_trait_path, tasks, output_dims, split_ratio,
-                                                batch_size, pin_mem, num_workers)
-        dataset, test_loader, _ = make_dataset(test_spec_path, test_trait_path, tasks, output_dims, split_ratio,
-                                               batch_size, pin_mem, num_workers)
-
-    scaler_dict = dataset.scaler_dict
-    median = scaler_dict[tk]['Median']
-    IQR = scaler_dict[tk]['IQR']
-
-    resampler = FilterResampler()
-
-    def loader2numpy(loader):
+    def loader2numpy(loader, max_itr=np.inf):
         all_data = []
         all_trait = []
 
         for itr, (x, trait) in enumerate(loader):
+            if itr > max_itr:
+                break
             x_resampled = resampler(x)
             all_data.append(x_resampled.detach().numpy())
 
@@ -81,8 +68,25 @@ def main(args):
 
         return X, Y
 
-    x_train, y_train = loader2numpy(train_loader)
-    x_test, y_test = loader2numpy(test_loader)
+    # --
+    resampler = FilterResampler()
+    if not isinstance(spec_path, dict):
+        dataset, train_loader, test_loader = make_dataset(spec_path, trait_path, tasks, output_dims, split_ratio,
+                                                          batch_size, pin_mem, num_workers)
+        x_train, y_train = loader2numpy(train_loader)
+        x_test, y_test = loader2numpy(test_loader)
+    else:
+        dataset, train_loader, _ = make_dataset(train_spec_path, train_trait_path, tasks, output_dims, split_ratio,
+                                                batch_size, pin_mem, num_workers)
+        dataset, test_loader, _ = make_dataset(test_spec_path, test_trait_path, tasks, output_dims, split_ratio,
+                                               batch_size, pin_mem, num_workers)
+        max_itr = min(len(train_loader), len(test_loader))
+        x_train, y_train = loader2numpy(train_loader, max_itr)
+        x_test, y_test = loader2numpy(test_loader, max_itr)
+
+    scaler_dict = dataset.scaler_dict
+    median = scaler_dict[tk]['Median']
+    IQR = scaler_dict[tk]['IQR']
 
     pls = PLSRegression(n_components=n_components)
     pls.fit(x_train, y_train)
@@ -92,7 +96,7 @@ def main(args):
 
     plot_complex_scatters(y_train * IQR + median, y_pred_train * IQR + median,
                           y_test * IQR + median, y_pred_test * IQR + median,
-                          model_name='PLSR', trait_name=f'{tag}_{tk}', save_dir=save_dir)
+                          model_name='PLSR', trait_name=f'{tk}', save_dir=save_fig)
 
 
 if __name__ == '__main__':

@@ -1,14 +1,14 @@
 data:
-  batch_size: 5000
+  batch_size: 400
   num_workers: 0
-  pin_mem: true
+  pin_mem: false
 #  spec_path: ../../data/demo/cabo_refl.csv
   spec_path:
     train: ../../data/with_label/lma_good/refl_not_tree.csv
     test: ../../data/with_label/lma_good/refl_is_tree.csv
   split_ratio:
-    - 0.7
-    - 0.3
+    - 1
+    - 0
   tasks:
     - LMA
 #  trait_path: ../../data/demo/cabo_trait.csv
@@ -17,6 +17,8 @@ data:
     test: ../../data/with_label/lma_good/trait_is_tree.csv
 logging:
   folder: checkpoints/
+  tag: lma_train_not_tree_test_is_tree
+  save: true
 meta:
   preprocess: manual
   proj_type: conv
@@ -26,8 +28,8 @@ meta:
   pred_type: ignore
   output_dims:
     LMA: 1
-  load_processor: true
-  read_checkpoint: manual_conv_learnable_small_not_tree_ignore_not_tree_lma-ep1000.pth.tar
+  upstream_dir: manual_conv_learnable_small_not_tree-ep3000.pth.tar
+  processor_dir: manual_conv_learnable_small_not_tree_complete_not_tree_lma-latest.pth.tar
   patch_size: 30
   pred_emb_dim: 96
   pred_depth: 2

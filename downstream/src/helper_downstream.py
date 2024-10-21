@@ -6,7 +6,7 @@ import torch
 
 import upstream.src.models.encoders as encoders
 from upstream.src.models.embedding import ManualEmbedding, AutomaticEmbedding
-from downstream.src.models.processor import TaskProcessor
+from downstream.src.models.processor import Processor
 from upstream.src.utils.tensors import trunc_normal_
 from upstream.src.utils.schedulers import (
     WarmupCosineSchedule,
@@ -39,7 +39,7 @@ def init_model(
     )
     embedding = ManualEmbedding(encoder.embed_dim, patch_size, proj_type=proj_type) if preprocess == 'manual' \
         else AutomaticEmbedding(encoder.embed_dim, patch_size, proj_type=proj_type)
-    processor = TaskProcessor(tasks=tasks, input_dim=encoder.embed_dim, output_dims=output_dims)
+    processor = Processor(tasks=tasks, input_dim=encoder.embed_dim, output_dims=output_dims)
 
     def init_weights(m):
         if isinstance(m, torch.nn.Linear):
@@ -59,6 +59,7 @@ def init_model(
 
     embedding.to(device)
     encoder.to(device)
+    predictor.to(device)
     processor.to(device)
 
     logger.info(processor)
@@ -68,18 +69,13 @@ def init_model(
 
 def load_checkpoint(
         device,
-        r_path,
+        upstream_path,
         embedding,
         encoder,
         predictor,
-        processor,
-        opts=None,
-        scalers=None,
-        load_processor=False,
 ):
     try:
-        checkpoint = torch.load(r_path, map_location=torch.device('cpu'))
-        epoch = checkpoint['epoch'] + 1
+        checkpoint = torch.load(upstream_path, map_location=torch.device('cpu'))
 
         # -- loading embedding
         pretrained_dict = checkpoint['embedding']
@@ -96,26 +92,42 @@ def load_checkpoint(
         msg = predictor.load_state_dict(pretrained_dict)
         logger.info(f'loaded pretrained predictor with msg: {msg}')
 
-        if load_processor:
-            try:
-                pretrained_dict = checkpoint['processor']
-            except KeyError as e:
-                print(f'No key named "processor" found in checkpoint: {e}')
-            msg = processor.load_state_dict(pretrained_dict)
-            logger.info(f'loaded pretrained processor from epoch {epoch} with msg: {msg}')
-            # -- loading optimizer
-            opts.load_state_dict(checkpoint['opt'])
-            if scalers is not None:
-                scalers.load_state_dict(checkpoint['scaler'])
+        logger.info(f'read-path: {upstream_path}')
+        del checkpoint
 
-        logger.info(f'read-path: {r_path}')
+    except Exception as e:
+        logger.info(f'Encountered exception when loading checkpoint {e}')
+
+    return embedding, encoder, predictor
+
+
+def load_processor(
+        device,
+        processor_path,
+        processor,
+        opt=None,
+        scaler=None,
+):
+    try:
+        checkpoint = torch.load(processor_path, map_location=torch.device('cpu'))
+        epoch = checkpoint['epoch']
+
+        pretrained_dict = checkpoint['processor']
+        msg = processor.load_state_dict(pretrained_dict)
+        logger.info(f'loaded pretrained processor from epoch {epoch+1} with msg: {msg}')
+
+        opt.load_state_dict(checkpoint['opt'])
+        if scaler is not None:
+            scaler.load_state_dict(checkpoint['scaler'])
+        logger.info(f'loaded optimizers from epoch {epoch+1}')
+        logger.info(f'read-path: {processor_path}')
         del checkpoint
 
     except Exception as e:
         logger.info(f'Encountered exception when loading checkpoint {e}')
         epoch = 0
 
-    return embedding, encoder, predictor, processor, opts, scalers, epoch
+    return processor, opt, scaler, epoch
 
 
 def init_opt(
